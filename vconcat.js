@@ -9,14 +9,17 @@ const abort = message => {
 
 const printHelpMessage = () => {
     const usage = `
-${chalk.white(scriptName)} [${chalk.red('"/path/to/source/folder"')} [${chalk.magenta('scale')} [${chalk.blue('"path/to/destination/folder"')}]]]
+${chalk.white(scriptName)} ["/path/to/source/folder" [scale ["path/to/destination/folder"]]]
 
 Params:
-  ${chalk.red('/path/to/source/folder')} - <string> optional: a folder containing .mp4 and .srt files; default: current directory
+  ${chalk.bgBlue.black('"/path/to/source/folder"')}
+    Optional <string>. A folder containing .mp4 and .srt files; default: current directory.
 
-  ${chalk.magenta('scale')} - <number> optional: resize videos using this floating point number; default: .25 (25%)
+  ${chalk.bgBlue.black('scale')}
+    Optional <number>. Resize videos using this floating point number; default: .25 (25% of the original).
 
-  ${chalk.blue('"path/to/destination/folder"')} - <string> optional: where to save; defaults: source or current directory`;
+  ${chalk.bgBlue.black('"path/to/destination/folder"')}
+    Optional <string>. Where to save; default: source or current directory.`;
     console.error(usage);
     process.exit(1);
 }
@@ -79,17 +82,38 @@ Style: Default,Roboto,16,&H00FFFFFF,&H000000FF,&H00000000,&H5A000000,-1,0,0,0,10
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
     const lineTemplate = 'Dialogue: 0,{start},{end},Default,,0,0,0,,{text}';
     const timeCodeRegex = /([\d:,]+)/gi;
-    const dateRegex = /\[([^\]]+)\]/g
+    const dateRegex = /\[([^\]]+)\]/g; // anything enclosed between straight parens
+    const isLocaleSupported = Intl.DateTimeFormat.supportedLocalesOf('ro-RO')[0] === 'ro-RO';
+    let dateFormatter = null;
+    if(isLocaleSupported){
+        dateFormatter = new Intl.DateTimeFormat("ro-Ro", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "numeric",
+          minute: "numeric",
+          second: "numeric"
+        });
+    }
+    // poor man's intl
     const months = 'ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie'.split('|');
-    const srt = fs.readFileSync(path.join(sourceDir, srtFile), 'utf8')
+    const days = 'duminică|luni|marți|miercuri|joi|vineri|sîmbătă'.split('|');
+    /**
+     * Node will use this ICU datafile if the environment variable NODE_ICU_DATA is set to “/usr/local/lib/node_modules/full-icu”
+     * or with node --icu-data-dir=/usr/local/lib/node_modules/full-icu YOURAPP.js
+     */
+    const srt = fs.readFileSync(path.join(sourceDir, srtFile), 'utf8');
+    const srtData = srt
         .split('\n\n') //split on empty lines
-        .filter((line, index) => line.length); //exclude empty lines
+        .filter((line, index) => line.length)
+        .map((sub, index) => sub.replace(/^[\d]+$/gm, '').trim()); // exclude empty lines and lines containing only digits (i. e. subtitle index)
     let ass = `${assPreamble}\n`;
-    srt.forEach((line, index) => {
-        // get subtitle time codes
-        let [timesLine, ...textLines] = line.split(/\n+/gm).slice(1); // split by lines, discard the first line (subtitle index)
+    srtData.forEach((line, index) => {
+        // get subtitle time codes and text
+        let [timesLine, ...textLines] = line.split(/\n+/gm); // split by lines
         textLines = textLines.join('\\N');
-        timeCodeRegex.lastIndex = 0; // reset regex
+        timeCodeRegex.lastIndex = 0; // reset regex match index
         const [startTime] = timeCodeRegex.exec(timesLine);
         const [endTime] = timeCodeRegex.exec(timesLine);
         const newStartTime = startTime
@@ -109,13 +133,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
             if(Date.parse(dateTimeString)){
                 // valid date
                 date = new Date(dateTimeString);
-                newDateText = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+                if(isLocaleSupported){
+                    newDateText = dateFormatter.format(date);
+                } else {
+                    newDateText = `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+                }
             } else {
                 // invalid date; try to reverse date string
-                dateTimeString = dateTimeString.split(/\s+/)[0].split(/\D/).reverse().join('-');
+                // dateTimeString = dateTimeString.split(/\s+/)[0].split(/\D/).reverse().join('-');
+                [dateString, timeString] = dateTimeString.split(/\s+/);
+                if(dateString.length){
+                    dateTimeString = `${dateString.split(/\D/).reverse().join('-')} ${timeString}`;
+                }
+                // try parsing the date one more time
                 if(Date.parse(dateTimeString)){
                     date = new Date(dateTimeString);
-                    newDateText = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+                    if(isLocaleSupported){
+                        newDateText = dateFormatter.format(date);
+                    } else {
+                        newDateText = `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+                    }
                 }
             }
             if(newDateText.length){
