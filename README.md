@@ -7,6 +7,7 @@ Subtitles (if present) are first (sort of) converted to Advanced Substation Alph
 ## Requirements
 
 - [ffmpeg](https://ffmpeg.org/) executable in path
+- [ffmpeg-progressbar-cli](https://github.com/sidneys/ffmpeg-progressbar-cli) to show encoding prgress `npm -i -g ffmpeg-progressbar-cli`
 - [chalk](https://www.npmjs.com/package/chalk) for terminal string styling: `npm -i -g chalk`
 
 ## Usage
