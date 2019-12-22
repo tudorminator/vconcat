@@ -95,7 +95,7 @@ const srtToAss = (srtFile) => {
   if(!fileInfo.exists || !fileInfo.isFile) {
     return;
   }
-    const assPreamble = `[Script Info]
+  const assPreamble = `[Script Info]
 Title: Default subtitle
 ScriptType: v4.00+
 WrapStyle: 0
@@ -188,19 +188,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
         }
       }
       if(newDateText.length){
-          textLines = textLines.replace(dateRegex, newDateText);
+        textLines = textLines.replace(dateRegex, newDateText);
       }
     }
     // remove superfluous ”0MPH” && ”0KM/H” speeds
     textLines = textLines.replace(/\s+0K?MP?\/?H/gi, '');
     ass += lineTemplate
-        .replace('{start}', newStartTime)
-        .replace('{end}', newEndTime)
-        .replace('{text}', textLines) + '\n';
+      .replace('{start}', newStartTime)
+      .replace('{end}', newEndTime)
+      .replace('{text}', textLines) + '\n';
     // console.dir({newText});
   });
-  const assFile = path.basename(srtFile).replace(path.extname(srtFile), '.ass');
-    fs.writeFileSync(path.join(destinationDir, assFile), ass, 'utf8');
+  const assFile = path.join(destinationDir, path.basename(srtFile).replace(path.extname(srtFile), '.ass'));
+  fs.writeFileSync(assFile, ass, 'utf8');
+  tempSubtitleFiles.push(assFile);
 }
 
 /**
@@ -209,9 +210,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`
  * ├────╴╴╴╴╴┤ * ╟────╴╴╴╴╴╢ * ╉────╴╴╴╴╴╊ * ─────╴╴╴╴╴╴ * ■■■■■■▫︎▫︎▫︎▫︎ * ▪︎▪︎▪︎▪︎▪︎▪︎▫︎▫︎▫︎▫︎▫︎▫︎ * |●●●●●□□□□□□| * ├●●●●●・・・╢ * ├◉◉◉◉◉◉○○○○○╢ * ❚❚❚❚❚❚███▫︎▫︎▫︎▫︎❘❘❘❘❘❘❘❘
  */
 const printProgressBar = (current, total) => {
-    const totalTerminalColumns = process.stdout.columns;
-    const emptyChar = '─';
-    const filledChar = '━';
+  const totalTerminalColumns = process.stdout.columns;
+  const emptyChar = '─';
+  const filledChar = '━';
   const endings = '||';
 	const percent = Math.floor(current * 100 / total);
 	const barLength = totalTerminalColumns - 1 - endings.length - 4; // 2 chars for bar ends, 4 chars for percent label
@@ -225,38 +226,42 @@ const printProgressBar = (current, total) => {
  * Resize video to 1/4 and embed text subtitle using ffmpeg
  */
 const resizeAndEmbedSub = fileName => {
-    const { resizePercentDisplay } = formatPercent(resizeRatio);
-    const baseName = path.basename(fileName, path.extname(fileName));
+  const { resizePercentDisplay } = formatPercent(resizeRatio);
+  const baseName = path.basename(fileName, path.extname(fileName));
   // const sourceVideoFile = path.resolve(fileName);
-    const subFile = path.join(destinationDir, `${baseName}.ass`);
-    const outputFile = path.join(destinationDir, `${baseName}${resizePercentDisplay}.mkv`);
-    let subParams = '';
-    if(fs.existsSync(subFile)){
+  const subFile = path.join(destinationDir, `${baseName}.ass`);
+  const outputFile = path.join(destinationDir, `${baseName}${resizePercentDisplay}.mkv`);
+  tempVideoFiles.push(outputFile);
+  let subParams = '';
+  if(fs.existsSync(subFile)){
     subParams = ` -i ${path.resolve(subFile)}`;
-    }
+  }
   let filterParams = ` -codec copy -map 0${subParams ? ' -map 1' : ''}`;
   if(resizeRatio !== 1.0){
     // keep aspect ratio - iw:-1
     filterParams = ` -filter_complex [0:v]scale=iw*${resizeRatio}:-1:flags=lanczos[video] -map [video] -map 0:a -c:a copy${subParams ? ' -map 1' : ''}`;
-    }
-    // console.log({fileName, videoFile, subFile, outputFile});
-    try {
+  }
+  // console.log({fileName, videoFile, subFile, outputFile});
+  try {
     const shellCommand = `BAR_FILENAME_LENGTH=28 ffmpeg-bar -y -i ${path.resolve(fileName)}${subParams}${filterParams} ${path.resolve(outputFile)}`;
     // console.log({shellCommand});
     // const shellCommand = `ffmpeg-bar -y -i "${fileName}"${subParams}${filterParams} "${outputFile}"`;
-        console.log('\n');
+    // console.log('\n');
     execSync(shellCommand, {stdio: 'inherit'});
-    } catch(err){
-        // move cursor 3 lines up to return to progress bar position after ffmpeg's error output
+    // process.stdout.write('\033[K\033[4A');
+    // process.stdout.cursorTo(0);
+    // process.stdout.clearScreenDown();
+  } catch(err){
+    // move cursor 3 lines up to return to progress bar position after ffmpeg's error output
     // process.stdout.write('\033[K\033[3A\r');
     console.error(err.toString());
-    }
+  }
 }
 
 const extractTime = fileName => {
-    const arr = Array.from(fileName.slice(11, 16).replace(/\D/g, ''));
-    arr.splice(2, 0, '\u{2236}');
-    return arr.join('');
+  const arr = Array.from(fileName.slice(11, 16).replace(/\D/g, ''));
+  arr.splice(2, 0, '\u{2236}');
+  return arr.join('');
 }
 
 const extractDate = fileName => path.basename(fileName).slice(0, 10).replace(/\D/g, '-');
@@ -264,27 +269,26 @@ const extractDate = fileName => path.basename(fileName).slice(0, 10).replace(/\D
 const cleanup = () => {
   process.stdout.clearScreenDown();
 
-  if(!sourceFile && mkvFiles.length > 1){
+  if(!sourceFile && tempVideoFiles.length > 1){
     process.stdout.write('Removing temp videos\u2026');
-    mkvFiles.forEach(file => {
-            try {
+    tempVideoFiles.forEach(file => {
+      try {
         fs.unlinkSync(path.join(destinationDir, path.basename(file)));
-            } catch {
-                console.error(`Failed to remove ${chalk.red(file)}!`);
-            }
-        });
-        process.stdout.cursorTo(0);
+      } catch {
+        console.error(`Failed to remove ${chalk.red(file)}!`);
+      }
+    });
+    process.stdout.cursorTo(0);
     process.stdout.write(`Removing temp videos\u2026 \t\t\t[${chalk.cyan('Done')}]\n`);
   }
 
-  if(subtitleFiles.length){
+  if(tempSubtitleFiles.length){
     process.stdout.write('Removing temp subtitles\u2026');
-    subtitleFiles.forEach(file => {
-      assFile = file.replace(path.extname(file), '.ass');
+    tempSubtitleFiles.forEach(file => {
       try {
-        fs.unlinkSync(path.join(destinationDir, path.basename(assFile)));
+        fs.unlinkSync(path.join(destinationDir, path.basename(file)));
       } catch {
-        console.error(`Failed to remove ${chalk.red(assFile)}!`);
+        console.error(`Failed to remove ${chalk.red(file)}!`);
       }
     });
     process.stdout.cursorTo(0);
@@ -294,8 +298,8 @@ const cleanup = () => {
   if(!sourceFile){
     process.stdout.write(`\rRemoving temp file list\u2026`);
     try {
-        fs.unlinkSync(path.join(destinationDir, 'concat-playlist.txt'));
-        process.stdout.cursorTo(0);
+      fs.unlinkSync(path.join(destinationDir, 'concat-playlist.txt'));
+      process.stdout.cursorTo(0);
       process.stdout.write(`\rRemoving temp file list\u2026 \t\t[${chalk.cyan('Done')}]\n`);
     } catch (err){
       // console.error(`Failed to remove ${chalk.red('concat-playlist.txt')}!`);
@@ -306,14 +310,14 @@ const cleanup = () => {
 }
 
 const printDuration = () => {
-    const dateObj = new Date(null);
-    const s = process.uptime();
-    dateObj.setSeconds(s);
-    const [hours, minutes, seconds] = dateObj.toISOString().split('T')[1].split(':').map(val => parseInt(val.split('.')[0]));
+  const dateObj = new Date(null);
+  const s = process.uptime();
+  dateObj.setSeconds(s);
+  const [hours, minutes, seconds] = dateObj.toISOString().split('T')[1].split(':').map(val => parseInt(val.split('.')[0]));
   const hoursString = hours ? `${hours} hour${hours > 1 ? 's' : ''}` : '';
   const minutesString = minutes ? `${hours ? ', ' : ''}${minutes} minute${minutes > 1 ? 's' : ''}` : '';
   const secondsString = seconds ? `${hours || minutes ? ' and ' : ''}${seconds} second${seconds > 1 ? 's' : ''}` : '';
-    console.log(`Done in ${hoursString}${minutesString}${secondsString}.`);
+  console.log(`Done in ${hoursString}${minutesString}${secondsString}.`);
 }
 
 // --------------- Main ----------------- //
@@ -405,35 +409,36 @@ if(args.length === 3){
   // check path
   const destInfo = getPathInfo(arg3);
   if(destInfo.exists && destInfo.isDirectory){
-        destinationDir = path.resolve(arg3);
-    } else {
+    destinationDir = path.resolve(arg3);
+  } else {
     abort(`No such directory: ${chalk.red(arg3)}. ${useHelpString}`);
-    }
+  }
 }
 
 // console.log({sourceDir, destinationDir, resizeRatio});
 // check if ffmpeg is present
 if(!isFfmpegPresent()){
-    abort(`${chalk.red('ffmpeg')} not found or not executable.`);
+  abort(`${chalk.red('ffmpeg')} not found or not executable.`);
 }
 
 const allFiles = sourceFile
-    ? [sourceFile, sourceFile.replace(path.extname(sourceFile), '.srt')]
-    : fs.readdirSync(sourceDir).sort();
+  ? [sourceFile, sourceFile.replace(path.extname(sourceFile), '.srt')]
+  : fs.readdirSync(sourceDir).sort();
 const videoFiles = allFiles
-    .filter(file => file.endsWith('.mp4'))
-    .map(file => path.join(sourceDir || path.dirname(sourceFile), path.basename(file)));
-    const subtitleFiles = allFiles
-    .filter(file => file.endsWith('.srt'))
-    .map(file => path.join(sourceDir || path.dirname(sourceFile), path.basename(file)));
+  .filter(file => file.endsWith('.mp4'))
+  .map(file => path.join(sourceDir || path.dirname(sourceFile), path.basename(file)));
+  const subtitleFiles = allFiles
+  .filter(file => file.endsWith('.srt'))
+  .map(file => path.join(sourceDir || path.dirname(sourceFile), path.basename(file)));
 
 // convert SRT to ASS subtitles
+let tempSubtitleFiles = [];
 if(subtitleFiles.length){
   // printProgressBar(0, 1);
   process.stdout.write(`Converting ${subtitleFiles.length} subtitle file${subtitleFiles.length > 1 ? 's' : ''}\u2026`);
     subtitleFiles.forEach((subFile, index, arr) => {
-        srtToAss(subFile);
-    // printProgressBar(index + 1, arr.length);
+      srtToAss(subFile);
+      // printProgressBar(index + 1, arr.length);
     });
   process.stdout.cursorTo(0);
   process.stdout.clearScreenDown();
@@ -457,21 +462,20 @@ ffmpeg -i <fileName>.mp4 -i <fileName>.ass -filter_complex "[0:v]scale=iw/4:ih/4
 */
 
 // use ffmpeg to convert movies to MKV with embedded subtitles
+let tempVideoFiles = [];
 if(videoFiles.length){
   // printProgressBar(0, 1);
-    // move cursor 2 lines up to return to progress bar position
-    // process.stdout.write('\033[K\033[2A\r');
-    videoFiles.forEach((videoFile, index, arr) => {
-    process.stdout.cursorTo(0);
-    process.stdout.write(`Resizing ${(index+1)} of ${videoFiles.length} file${videoFiles.length > 1 ? 's' : ''}\u2026`);
-        resizeAndEmbedSub(videoFile);
-    process.stdout.write('\033[K\033[3A');
-    process.stdout.clearScreenDown();
+  // move cursor 2 lines up to return to progress bar position
+  // process.stdout.write('\033[K\033[2A\r');
+  console.log(`Resizing ${videoFiles.length} file${videoFiles.length > 1 ? 's' : ''}\u2026`);
+  videoFiles.forEach((videoFile, index, arr) => {
+    resizeAndEmbedSub(videoFile);
+    // process.stdout.write('\033[K\033[4A');
+    // process.stdout.clearScreenDown();
     // printProgressBar(index + 1, arr.length);
-    });
+  });
   // process.stdout.cursorTo(0);
-  process.stdout.clearScreenDown();
-  process.stdout.write(`Resizing ${videoFiles.length} file${videoFiles.length > 1 ? 's' : ''}\u2026 \t\t\t[${chalk.cyan('Done')}]\n\n`);
+  console.log(`Resizing ${videoFiles.length} file${videoFiles.length > 1 ? 's' : ''}\u2026 \t\t\t[${chalk.cyan('Done')}]\n\n`);
 }
 
 const { resizePercentDisplay } = formatPercent(resizeRatio);
