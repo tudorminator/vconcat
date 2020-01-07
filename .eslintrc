@@ -1,0 +1,116 @@
+{
+  "env": {
+    "browser": false,
+    "es6": true,
+    "node": true
+  },
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 7,
+    "ecmaFeatures": {
+      "globalReturn": true,
+      "impliedStrict": true,
+      "modules": true,
+      "spread" : true,
+      "restParams" : true
+    }
+  },
+  "root": true,
+  "rules": {
+    "brace-style": [
+      "error",
+      "1tbs",
+      {
+        "allowSingleLine": true
+      }
+    ],
+    "camelcase": "off",
+    "comma-dangle": "off",
+    "comma-style": [
+      "error",
+      "last"
+    ],
+    "dot-notation": "off",
+    "eol-last": "off",
+    "eqeqeq": "error",
+    "indent": [
+      "error",
+      2,
+      {
+        "MemberExpression": "off",
+        "SwitchCase": 1
+      }
+    ],
+    "key-spacing": [
+      "error",
+      {
+        "afterColon": true,
+        "beforeColon": false
+      }
+    ],
+    "keyword-spacing": "off",
+    "linebreak-style": [
+      "error",
+      "unix"
+    ],
+    "no-bitwise": "off",
+    "no-caller": "error",
+    "no-mixed-spaces-and-tabs": "error",
+    "no-multi-str": "error",
+    "no-trailing-spaces": "error",
+    "no-undef": "warn",
+    "no-unused-vars": [
+      "warn",
+      {
+        "args": "none",
+        "vars": "local"
+      }
+    ],
+    "no-use-before-define": "off",
+    "no-with": "error",
+    "object-curly-spacing": "off",
+    "object-shorthand": "off",
+    "quotes": [
+      "error",
+      "single",
+      {
+        "allowTemplateLiterals": true
+      }
+    ],
+    "semi-style": [
+      "error",
+      "last"
+    ],
+    "space-before-blocks": [
+      "error",
+      "never"
+    ],
+    "space-before-function-paren": [
+      "error",
+      {
+        "anonymous": "ignore",
+        "named": "never"
+      }
+    ],
+    "space-in-parens": [
+      "error",
+      "never"
+    ],
+    "space-infix-ops": "error",
+    "space-unary-ops": [
+      "error",
+      {
+        "words": false,
+        "nonwords": false
+      }
+    ],
+    "valid-jsdoc": [
+      "warn",
+      {
+        "requireReturn": false,
+        "requireReturnDescription": false
+      }
+    ],
+    "wrap-iife": "off"
+  }
+}
