@@ -8,29 +8,27 @@ const path = require('path');
 const fs = require('fs');
 
 // internal dependencies
-const params = require('./lib/parse-args');
 const {
+  introText,
+  useHelpString,
   abort,
   printHelpMessage,
   formatPercent,
   printDuration,
   getPathInfo,
   isCommandPresent,
-  extractTime
+  extractDate,
+  extractTime,
 } = require('./lib/util');
 
 const srtToAss = require('./lib/srt-to-ass');
 
-const scriptPath = path.parse(process.argv[1]);
-const scriptName = scriptPath.base;
-const ver = '0.2';
-const introText = `${chalk.white(scriptName)} version ${ver}, ©${new Date().getFullYear()} Tudor Iordăchescu\nhttps://github.com/tudorminator/vconcat\n`;
-const useHelpString = 'Use -h or --help for more info.';
-
-
-
 // --------------- Main ----------------- //
 console.log(introText);
+
+// parse args
+const params = require('./lib/parse-args');
+console.debug('debug:', params);
 
 if(!params.paramsOK){
   if(params.unknown.length){
@@ -44,10 +42,11 @@ if(!params.paramsOK){
     abort(`Invalid value${plural}:${messages}`);
   }
 }
-console.debug({ params });
+
 if(params.help){
   printHelpMessage();
 }
+
 process.exit();
 
 
