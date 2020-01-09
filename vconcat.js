@@ -12,6 +12,7 @@ const {
   introText,
   useHelpString,
   abort,
+  debug,
   printHelpMessage,
   formatPercent,
   printDuration,
@@ -25,26 +26,25 @@ const srtToAss = require('./lib/srt-to-ass');
 
 // --------------- Main ----------------- //
 console.log(introText);
+// parse args, store in global var so they can be accessed in external modules
+global.options = require('./lib/parse-args');
+debug('Options:', global.options);
 
-// parse args
-const params = require('./lib/parse-args');
-console.debug('debug:', params);
+if(global.options.help){
+  printHelpMessage();
+}
 
-if(!params.paramsOK){
-  if(params.unknown.length){
-    const plural = params.unknown.length > 1 ? 's' : '';
-    abort(`Unknown option${plural}: ${params.unknown.join(', ')}`);
+if(!global.options.paramsOK){
+  if(global.options.unknown.length){
+    const plural = global.options.unknown.length > 1 ? 's' : '';
+    abort(`Unknown option${plural}: ${global.options.unknown.join(', ')}`);
   }
-  if(Object.keys(params.invalid).length){
-    const entries = Object.entries(params.invalid);
+  if(Object.keys(global.options.invalid).length){
+    const entries = Object.entries(global.options.invalid);
     const messages = entries.map((entry) => `\n\t'${entry[0]}': ${entry[1]}`).join('');
     const plural = entries.length > 1 ? 's' : '';
     abort(`Invalid value${plural}:${messages}`);
   }
-}
-
-if(params.help){
-  printHelpMessage();
 }
 
 process.exit();
