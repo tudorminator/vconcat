@@ -41,101 +41,12 @@ if(!global.options.paramsOK){
   }
   if(Object.keys(global.options.invalid).length){
     const entries = Object.entries(global.options.invalid);
-    const messages = entries.map((entry) => `\n\t'${entry[0]}': ${entry[1]}`).join('');
+    const messages = entries.map((entry) => `\n  '${entry[0]}': ${entry[1]}`).join('');
     const plural = entries.length > 1 ? 's' : '';
     abort(`Invalid value${plural}:${messages}`);
   }
 }
 
-process.exit();
-
-
-
-// parse params
-const args = process.argv.slice(2);
-let sourceDir = null;
-let sourceFile = null;
-let destinationDir = null
-let resizeRatio = .25;
-// no arguments; source and destination default to current folder, size defaults to .25
-if (args.length === 0){
-  sourceDir = destinationDir = process.pwd();
-  resizeRatio = .25;
-}
-// one argument; can be the help switch or <source>
-if (args.length === 1){
-  const [arg] = args;
-  if (arg === '-h' || arg === '--help'){
-    printHelpMessage();
-  }
-  const sourceInfo = getPathInfo(arg);
-  // console.log(sourceInfo);
-  // check path
-  if (sourceInfo.exists && sourceInfo.isDirectory){
-    sourceDir = destinationDir = path.resolve(arg);
-  } else if (sourceInfo.exists && sourceInfo.isFile){
-    sourceFile = path.resolve(arg);
-    // save in the same directory
-    destinationDir = path.dirname(sourceFile);
-  } else {
-    abort(`No such file or directory: ${chalk.red(arg)}. ${useHelpString}`);
-  }
-}
-// two arguments; <source> <size>
-if (args.length === 2){
-  const [arg1, arg2] = args;
-  const sourceInfo = getPathInfo(arg1);
-  // check path
-  if (sourceInfo.exists && sourceInfo.isDirectory){
-    sourceDir = destinationDir = path.resolve(arg1);
-  } else if (sourceInfo.exists && sourceInfo.isFile){
-    sourceFile = path.resolve(arg1);
-    // save in the same directory
-    destinationDir = path.dirname(sourceFile);
-  } else {
-    abort(`No such file or directory: ${chalk.red(arg1)}. ${useHelpString}`);
-  }
-  // check if it's a number
-  const ratio = parseFloat(arg2);
-  if (isNaN(ratio) || ratio < 0){
-    abort(`Not a positive number: ${chalk.red(arg2)}. ${useHelpString}`);
-  } else {
-    resizeRatio = ratio;
-  }
-}
-// three arguments: <source> <size> <destination>
-if (args.length === 3){
-  const [arg1, arg2, arg3] = args;
-  // console.log({arg1, arg2, arg3});
-  // check if it's a path
-  const sourceInfo = getPathInfo(arg1);
-  // check path
-  if (sourceInfo.exists && sourceInfo.isDirectory){
-    sourceDir = path.resolve(arg1);
-  } else if (sourceInfo.exists && sourceInfo.isFile){
-    sourceFile = path.resolve(arg1);
-  } else {
-    abort(`No such file or directory: ${chalk.red(arg1)}. ${useHelpString}`);
-  }
-
-  // check if it's a number
-  const ratio  = parseFloat(arg2);
-  if (isNaN(ratio) || ratio < 0){
-    abort(`Not a number or not positive: ${chalk.red(arg2)}. ${useHelpString}`);
-  } else {
-    resizeRatio = ratio;
-  }
-
-  // check path
-  const destInfo = getPathInfo(arg3);
-  if (destInfo.exists && destInfo.isDirectory){
-    destinationDir = path.resolve(arg3);
-  } else {
-    abort(`No such directory: ${chalk.red(arg3)}. ${useHelpString}`);
-  }
-}
-
-// console.log({sourceDir, destinationDir, resizeRatio});
 // check if ffmpeg-bar is present
 if (!isCommandPresent('ffmpeg-bar')){
   abort(`${chalk.red('ffmpeg-bar')} not found or not executable.`);
@@ -146,9 +57,42 @@ if (!isCommandPresent('ffmpeg')){
   abort(`${chalk.red('ffmpeg')} not found or not executable.`);
 }
 
-const allFiles = sourceFile
+// check source
+let singleFileMode = false;
+const sourceInfo = getPathInfo(global.options.source);
+const targetInfo = getPathInfo(global.options.target);
+if (sourceInfo.error === null && sourceInfo.exists){
+  global.options.source = path.resolve(global.options.source);
+} else {
+  debug(sourceInfo.error);
+  abort(`No such file or directory: ${chalk.red(global.options.source)}. ${useHelpString}`);
+}
+if (sourceInfo.isDirectory){
+  // nothing, proceed
+} else if (sourceInfo.exists && sourceInfo.isFile){
+  singleFileMode = true;
+  // check destination
+  if(targetInfo.error === null){
+    if(targetInfo.exists && targetInfo.isFile){
+      if(path.resolve(global.options.source) === path.resolve(global.options.target)){
+        abort('Cannot overwrite source file!');
+      }
+    }
+  } else {
+    debug('target error:', targetInfo.error);
+    // fallback to the same folder as source
+    global.options.target = path.resolve(path.basename(global.options.source));
+  }
+
+  // save in the same directory
+  destinationDir = path.dirname(sourceFile);
+} else {
+}
+
+/* const allFiles = sourceFile
   ? [sourceFile, sourceFile.replace(path.extname(sourceFile), '.srt')]
-  : fs.readdirSync(sourceDir).sort();
+  : fs.readdirSync(sourceDir).sort(); */
+const allFiles = fs.readdirSync(global.options.source).sort();
 const videoFiles = allFiles
   .filter(file => file.endsWith('.mp4'))
   .map(file => path.join(sourceDir || path.dirname(sourceFile), path.basename(file)));
